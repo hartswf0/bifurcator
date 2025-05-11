@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Scan Processor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        :root {
+            --primary: #3050cc;
+            --primary-hover: #4060dd;
+            --secondary: #f0f4ff;
+            --border: #ccc;
+            --text: #333;
+            --text-light: #666;
+            --success: #4caf50;
+            --error: #f44336;
+            --radius: 6px;
+            --warning: #ff9800;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            color: var(--text);
+            background-color: #f9f9f9;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .container {
+            background-color: white;
+            border-radius: var(--radius);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            color: var(--primary);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        h2 {
+            color: var(--text);
+            margin: 20px 0 15px;
+            font-size: 1.5rem;
+        }
+        
+        .upload-section {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .file-input-container {
+            position: relative;
+            margin: 20px auto;
+            width: 300px;
+        }
+        
+        .file-input {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+            z-index: 2;
+        }
+        
+        .file-input-label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 2px dashed var(--border);
+            border-radius: var(--radius);
+            padding: 25px;
+            text-align: center;
+            color: var(--text-light);
+            transition: all 0.3s ease;
+        }
+        
+        .file-input-label:hover,
+        .file-input:focus + .file-input-label {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+        
+        .file-icon {
+            font-size: 40px;
+            margin-bottom: 10px;
+        }
+        
+        .button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius);
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            display: inline-block;
+            margin: 5px;
+        }
+        
+        .button:hover,
+        .button:focus {
+            background-color: var(--primary-hover);
+        }
+        
+        .button:disabled {
+            background-color: var(--border);
+            cursor: not-allowed;
+        }
+        
+        .secondary-button {
+            background-color: var(--secondary);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+        
+        .secondary-button:hover {
+            background-color: #e0e4f0;
+        }
+        
+        .preview-section {
+            display: none;
+            margin-top: 30px;
+        }
+        
+        .page-controls {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        .preview-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .page-preview {
+            position: relative;
+            width: 200px;
+            height: 280px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            margin: 5px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        
+        .page-preview canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
+        .page-number {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+        }
+        
+        .page-checkbox {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            transform: scale(1.5);
+            cursor: pointer;
+        }
+        
+        .processing-options {
+            background-color: var(--secondary);
+            border-radius: var(--radius);
+            padding: 15px;
+            margin: 20px 0;
+        }
+        
+        .option-group {
+            margin-bottom: 15px;
+        }
+        
+        .output-section {
+            display: none;
+            margin-top: 30px;
+        }
+        
+        .download-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .status {
+            text-align: center;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: var(--radius);
+        }
+        
+        .status.success {
+            background-color: #e8f5e9;
+            color: var(--success);
+        }
+        
+        .status.error {
+            background-color: #ffebee;
+            color: var(--error);
+        }
+        
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top: 4px solid var(--primary);
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .instructions {
+            background-color: #e8f5e9;
+            border-left: 4px solid var(--success);
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: var(--radius);
+        }
+        
+        .instructions h3 {
+            margin-bottom: 10px;
+            color: var(--success);
+        }
+        
+        .instructions ol {
+            margin-left: 20px;
+        }
+        
+        .instructions li {
+            margin-bottom: 5px;
+        }
+        
+        .alert {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: var(--radius);
+            text-align: center;
+        }
+        
+        .alert-info {
+            background-color: #e3f2fd;
+            color: #0d47a1;
+        }
+        
+        .alert-warning {
+            background-color: #fff3e0;
+            color: #e65100;
+        }
+        
+        .file-input-label-dragover {
+            border-color: var(--primary);
+            background-color: var(--secondary);
+            color: var(--primary);
+        }
+        
+        #errorDetails {
+            background-color: #ffebee;
+            color: var(--error);
+            padding: 10px;
+            border-radius: var(--radius);
+            margin-top: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px 15px;
+            }
+            
+            .page-preview {
+                width: 150px;
+                height: 210px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>PDF Scan Processor</h1>
+        
+        <div class="instructions">
+            <h3>How it works</h3>
+            <ol>
+                <li>Upload your PDF scan</li>
+                <li>Preview and select pages to process</li>
+                <li>Choose processing options (split pages, rearrange)</li>
+                <li>Process your PDF and download the result</li>
+            </ol>
+        </div>
+        
+        <div class="upload-section">
+            <h2>Upload your PDF</h2>
+            <div class="file-input-container">
+                <input type="file" id="pdfFile" class="file-input" accept=".pdf" />
+                <label for="pdfFile" class="file-input-label">
+                    <div class="file-icon">📄</div>
+                    <div>Click or drag & drop PDF file</div>
+                </label>
+            </div>
+            <div id="fileInfo" class="alert alert-info" style="display: none;"></div>
+        </div>
+        
+        <div id="previewSection" class="preview-section">
+            <h2>Preview & Select Pages</h2>
+            <div class="alert alert-info">
+                Use checkboxes to select which pages you want to include in the final document.
+            </div>
+            
+            <div class="page-controls">
+                <button id="selectAllBtn" class="button secondary-button">Select All</button>
+                <button id="deselectAllBtn" class="button secondary-button">Deselect All</button>
+                <button id="selectOddBtn" class="button secondary-button">Select Odd Pages</button>
+                <button id="selectEvenBtn" class="button secondary-button">Select Even Pages</button>
+            </div>
+            
+            <div class="processing-options">
+                <h3>Processing Options</h3>
+                
+                <div class="option-group">
+                    <input type="checkbox" id="splitPagesOption" checked />
+                    <label for="splitPagesOption">Split pages in half (for scans with two pages on one sheet)</label>
+                </div>
+                
+                <div class="option-group">
+                    <input type="checkbox" id="reorderPagesOption" checked />
+                    <label for="reorderPagesOption">Reorder pages (put left/right halves in sequence)</label>
+                </div>
+            </div>
+            
+            <div class="preview-container" id="pagesContainer"></div>
+            
+            <div class="page-controls">
+                <button id="processBtn" class="button">Process Selected Pages</button>
+            </div>
+        </div>
+        
+        <div id="loadingSpinner" class="loading-spinner">
+            <div class="spinner"></div>
+            <p>Processing PDF...</p>
+        </div>
+        
+        <div id="outputSection" class="output-section">
+            <h2>Processed PDF</h2>
+            <div id="statusMessage" class="status"></div>
+            <div id="errorDetails"></div>
+            <div class="download-container">
+                <a id="downloadLink" class="button" download="processed_document.pdf">Download Processed PDF</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize PDF.js and jsPDF
+        window.pdfjsLib = window['pdfjs-dist/build/pdf'];
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+        
+        // Global variables
+        const { pdfjsLib } = window;
+        const { jspdf } = window;
+        
+        let pdfDocument = null;
+        let pdfData = null;
+        let pdfDataBlob = null; // Store as Blob to avoid ArrayBuffer detachment issues
+        let pageSelection = [];
+        
+        // DOM elements
+        const pdfFileInput = document.getElementById('pdfFile');
+        const fileInfo = document.getElementById('fileInfo');
+        const previewSection = document.getElementById('previewSection');
+        const pagesContainer = document.getElementById('pagesContainer');
+        const processBtn = document.getElementById('processBtn');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const outputSection = document.getElementById('outputSection');
+        const statusMessage = document.getElementById('statusMessage');
+        const downloadLink = document.getElementById('downloadLink');
+        const selectAllBtn = document.getElementById('selectAllBtn');
+        const deselectAllBtn = document.getElementById('deselectAllBtn');
+        const selectOddBtn = document.getElementById('selectOddBtn');
+        const selectEvenBtn = document.getElementById('selectEvenBtn');
+        const splitPagesOption = document.getElementById('splitPagesOption');
+        const reorderPagesOption = document.getElementById('reorderPagesOption');
+        
+        // PDF file input change handler
+        pdfFileInput.addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (!file || file.type !== 'application/pdf') {
+                showError('Please select a valid PDF file.');
+                return;
+            }
+            
+            try {
+                await loadPdfFile(file);
+            } catch (error) {
+                console.error('Load PDF error:', error);
+                showError('Error loading PDF: ' + (error.message || 'Unknown error'));
+            }
+        });
+        
+        // Also handle drag and drop
+        document.querySelector('.file-input-label').addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.currentTarget.classList.add('file-input-label-dragover');
+        });
+        
+        document.querySelector('.file-input-label').addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.currentTarget.classList.remove('file-input-label-dragover');
+        });
+        
+        document.querySelector('.file-input-label').addEventListener('drop', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.currentTarget.classList.remove('file-input-label-dragover');
+            
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                const file = e.dataTransfer.files[0];
+                if (file.type === 'application/pdf') {
+                    try {
+                        await loadPdfFile(file);
+                    } catch (error) {
+                        console.error('Load PDF error:', error);
+                        showError('Error loading PDF: ' + (error.message || 'Unknown error'));
+                    }
+                } else {
+                    showError('Please select a valid PDF file.');
+                }
+            }
+        });
+        
+        // Load PDF file
+        async function loadPdfFile(file) {
+            resetUI();
+            
+            try {
+                // Show loading message
+                fileInfo.style.display = 'block';
+                fileInfo.textContent = `Loading ${file.name}...`;
+                
+                // Store the original file as a Blob for later use
+                pdfDataBlob = file;
+                
+                // Create a fresh ArrayBuffer for the current operation
+                const arrayBuffer = await file.arrayBuffer();
+                pdfData = new Uint8Array(arrayBuffer);
+                
+                // Load PDF document with explicit parameters
+                const loadingTask = pdfjsLib.getDocument({
+                    data: pdfData,
+                    verbosity: 0,
+                    cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/cmaps/',
+                    cMapPacked: true,
+                    standardFontDataUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/standard_fonts/'
+                });
+                
+                pdfDocument = await loadingTask.promise;
+                
+                // Display file info
+                fileInfo.textContent = `${file.name} - ${pdfDocument.numPages} page(s)`;
+                
+                // Initialize page selection array
+                pageSelection = Array(pdfDocument.numPages).fill(true);
+                
+                // Render page previews
+                await renderPagePreviews();
+                
+                // Show preview section
+                previewSection.style.display = 'block';
+            } catch (error) {
+                console.error('PDF loading error:', error);
+                throw new Error('Failed to load PDF: ' + (error.message || 'Unknown error'));
+            }
+        }
+        
+        // Render page previews
+        async function renderPagePreviews() {
+            pagesContainer.innerHTML = '';
+            
+            for (let i = 0; i < pdfDocument.numPages; i++) {
+                const pageNumber = i + 1;
+                const page = await pdfDocument.getPage(pageNumber);
+                
+                const pageDiv = document.createElement('div');
+                pageDiv.className = 'page-preview';
+                
+                // Create canvas for page preview
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                
+                // Set scale for preview
+                const viewport = page.getViewport({ scale: 0.5 });
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                
+                // Render page to canvas
+                await page.render({
+                    canvasContext: context,
+                    viewport: viewport
+                }).promise;
+                
+                pageDiv.appendChild(canvas);
+                
+                // Add page number
+                const pageNumberDiv = document.createElement('div');
+                pageNumberDiv.className = 'page-number';
+                pageNumberDiv.textContent = `Page ${pageNumber}`;
+                pageDiv.appendChild(pageNumberDiv);
+                
+                // Add checkbox for page selection
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'page-checkbox';
+                checkbox.checked = pageSelection[i];
+                checkbox.dataset.pageIndex = i;
+                checkbox.addEventListener('change', (e) => {
+                    pageSelection[i] = e.target.checked;
+                });
+                pageDiv.appendChild(checkbox);
+                
+                pagesContainer.appendChild(pageDiv);
+            }
+        }
+        
+        // Process selected pages
+        processBtn.addEventListener('click', async () => {
+            if (!pdfDocument) {
+                showError('Please upload a PDF file first.');
+                return;
+            }
+            
+            const selectedPages = pageSelection.filter(Boolean).length;
+            if (selectedPages === 0) {
+                showError('Please select at least one page to process.');
+                return;
+            }
+            
+            try {
+                loadingSpinner.style.display = 'block';
+                outputSection.style.display = 'none';
+                document.getElementById('errorDetails').style.display = 'none';
+                
+                const splitPages = splitPagesOption.checked;
+                const reorderPages = reorderPagesOption.checked;
+                
+                // Create a fresh copy of the PDF data from the stored blob
+                const freshArrayBuffer = await pdfDataBlob.arrayBuffer();
+                const freshPdfData = new Uint8Array(freshArrayBuffer);
+                
+                const processedPdfBytes = await processPdf(
+                    freshPdfData, 
+                    pageSelection, 
+                    splitPages, 
+                    reorderPages
+                );
+                
+                // Create download link
+                const blob = new Blob([processedPdfBytes], { type: 'application/pdf' });
+                const url = URL.createObjectURL(blob);
+                downloadLink.href = url;
+                
+                // Show output section
+                loadingSpinner.style.display = 'none';
+                outputSection.style.display = 'block';
+                statusMessage.className = 'status success';
+                statusMessage.textContent = 'PDF processed successfully! Click the button below to download.';
+                
+            } catch (error) {
+                console.error('Processing error:', error);
+                loadingSpinner.style.display = 'none';
+                
+                const errorDetails = document.getElementById('errorDetails');
+                if (error.stack) {
+                    errorDetails.textContent = error.stack;
+                    errorDetails.style.display = 'block';
+                }
+                
+                showError('Error processing PDF: ' + (error.message || 'Unknown error'));
+            }
+        });
+        
+        // Process PDF function
+        async function processPdf(pdfData, pageSelection, splitPages, reorderPages) {
+            try {
+                // Use the PDF data directly without attempting to copy it
+                // This avoids any detached ArrayBuffer issues
+                
+                // Load PDF document with explicit parameters
+                const loadingTask = pdfjsLib.getDocument({
+                    data: pdfData,
+                    verbosity: 0,
+                    cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/cmaps/',
+                    cMapPacked: true,
+                    standardFontDataUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/standard_fonts/'
+                });
+                
+                const pdfDoc = await loadingTask.promise;
+                
+                // Initialize jsPDF
+                const { jsPDF } = window.jspdf;
+                
+                // Create a new PDF
+                const outputPdf = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'pt'
+                });
+                
+                let processedPageCount = 0;
+                const rightHalves = []; // Define rightHalves array here
+                
+                // First, collect all selected pages and their halves
+                const pagesData = [];
+                
+                for (let i = 0; i < pageSelection.length; i++) {
+                    if (!pageSelection[i]) continue;
+                    
+                    const pageNumber = i + 1;
+                    const page = await pdfDoc.getPage(pageNumber);
+                    const viewport = page.getViewport({ scale: 1.0 });
+                    
+                    // Create canvas for rendering
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    canvas.width = viewport.width;
+                    canvas.height = viewport.height;
+                    
+                    // Render page to canvas
+                    await page.render({
+                        canvasContext: context,
+                        viewport: viewport
+                    }).promise;
+                    
+                    if (splitPages) {
+                        // Calculate dimensions for half page
+                        const halfWidth = Math.floor(canvas.width / 2);
+                        
+                        // Create canvases for left and right halves
+                        const leftCanvas = document.createElement('canvas');
+                        const leftContext = leftCanvas.getContext('2d');
+                        leftCanvas.width = halfWidth;
+                        leftCanvas.height = canvas.height;
+                        
+                        const rightCanvas = document.createElement('canvas');
+                        const rightContext = rightCanvas.getContext('2d');
+                        rightCanvas.width = halfWidth;
+                        rightCanvas.height = canvas.height;
+                        
+                        // Draw left half
+                        leftContext.drawImage(
+                            canvas, 
+                            0, 0, halfWidth, canvas.height, 
+                            0, 0, halfWidth, canvas.height
+                        );
+                        
+                        // Draw right half
+                        rightContext.drawImage(
+                            canvas, 
+                            halfWidth, 0, halfWidth, canvas.height, 
+                            0, 0, halfWidth, canvas.height
+                        );
+                        
+                        // Store both halves for organized processing later
+                        pagesData.push({
+                            type: 'left',
+                            width: leftCanvas.width,
+                            height: leftCanvas.height,
+                            dataUrl: leftCanvas.toDataURL('image/jpeg', 0.95),
+                            pageNumber: pageNumber
+                        });
+                        
+                        pagesData.push({
+                            type: 'right',
+                            width: rightCanvas.width,
+                            height: rightCanvas.height,
+                            dataUrl: rightCanvas.toDataURL('image/jpeg', 0.95),
+                            pageNumber: pageNumber
+                        });
+                    } else {
+                        // Store whole page
+                        pagesData.push({
+                            type: 'whole',
+                            width: canvas.width,
+                            height: canvas.height,
+                            dataUrl: canvas.toDataURL('image/jpeg', 0.95),
+                            pageNumber: pageNumber
+                        });
+                    }
+                }
+                
+                // Now process the collected pages in the desired order
+                if (splitPages && reorderPages) {
+                    // For book-like reading order: left1, right1, left2, right2, ...
+                    const leftPages = pagesData.filter(p => p.type === 'left');
+                    const rightPages = pagesData.filter(p => p.type === 'right');
+                    
+                    // Interleave left and right pages
+                    for (let i = 0; i < Math.min(leftPages.length, rightPages.length); i++) {
+                        // Add left page
+                        if (processedPageCount > 0) {
+                            outputPdf.addPage([leftPages[i].width, leftPages[i].height]);
+                        }
+                        outputPdf.addImage(
+                            leftPages[i].dataUrl, 'JPEG', 
+                            0, 0, 
+                            leftPages[i].width, leftPages[i].height
+                        );
+                        processedPageCount++;
+                        
+                        // Add corresponding right page
+                        outputPdf.addPage([rightPages[i].width, rightPages[i].height]);
+                        outputPdf.addImage(
+                            rightPages[i].dataUrl, 'JPEG', 
+                            0, 0, 
+                            rightPages[i].width, rightPages[i].height
+                        );
+                        processedPageCount++;
+                    }
+                } else if (splitPages) {
+                    // In sequential order: left1, right1, left2, right2, ...
+                    for (let i = 0; i < pagesData.length; i++) {
+                        if (processedPageCount > 0) {
+                            outputPdf.addPage([pagesData[i].width, pagesData[i].height]);
+                        }
+                        outputPdf.addImage(
+                            pagesData[i].dataUrl, 'JPEG', 
+                            0, 0, 
+                            pagesData[i].width, pagesData[i].height
+                        );
+                        processedPageCount++;
+                    }
+                } else {
+                    // Just whole pages in order
+                    for (let i = 0; i < pagesData.length; i++) {
+                        if (processedPageCount > 0) {
+                            outputPdf.addPage([pagesData[i].width, pagesData[i].height]);
+                        }
+                        outputPdf.addImage(
+                            pagesData[i].dataUrl, 'JPEG', 
+                            0, 0, 
+                            pagesData[i].width, pagesData[i].height
+                        );
+                        processedPageCount++;
+                    }
+                }
+                
+                // Save PDF and return as Uint8Array
+                return outputPdf.output('arraybuffer');
+            } catch (error) {
+                console.error('PDF processing error:', error);
+                throw error;
+            }
+        }
+        
+        // Page selection buttons event listeners
+        selectAllBtn.addEventListener('click', () => {
+            updatePageSelection(true);
+        });
+        
+        deselectAllBtn.addEventListener('click', () => {
+            updatePageSelection(false);
+        });
+        
+        selectOddBtn.addEventListener('click', () => {
+            pageSelection = pageSelection.map((_, index) => index % 2 === 0);
+            updateCheckboxes();
+        });
+        
+        selectEvenBtn.addEventListener('click', () => {
+            pageSelection = pageSelection.map((_, index) => index % 2 === 1);
+            updateCheckboxes();
+        });
+        
+        // Update page selection
+        function updatePageSelection(selected) {
+            pageSelection = Array(pageSelection.length).fill(selected);
+            updateCheckboxes();
+        }
+        
+        // Update checkboxes based on selection array
+        function updateCheckboxes() {
+            const checkboxes = document.querySelectorAll('.page-checkbox');
+            checkboxes.forEach((checkbox, index) => {
+                checkbox.checked = pageSelection[index];
+            });
+        }
+        
+        // Show error message
+        function showError(message) {
+            loadingSpinner.style.display = 'none';
+            statusMessage.className = 'status error';
+            statusMessage.textContent = message;
+            outputSection.style.display = 'block';
+        }
+        
+        // Reset UI
+        function resetUI() {
+            fileInfo.style.display = 'none';
+            previewSection.style.display = 'none';
+            loadingSpinner.style.display = 'none';
+            outputSection.style.display = 'none';
+            pagesContainer.innerHTML = '';
+            statusMessage.textContent = '';
+        }
+    </script>
+</body>
+</html>
