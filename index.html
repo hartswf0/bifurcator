@@ -384,7 +384,7 @@
                         <input type="checkbox" id="highQuality" checked>
                         High Quality Mode
                     </label>
-                    <div class="option-description">Uses maximum quality settings (larger file size)</div>
+                    <div class="option-description">Uses maximum quality JPEG settings (larger file size)</div>
                 </div>
             </div>
             
@@ -729,7 +729,8 @@
                             type: 'left',
                             width: leftCanvas.width,
                             height: leftCanvas.height,
-                            dataUrl: highQuality ? leftCanvas.toDataURL('image/png') : leftCanvas.toDataURL('image/jpeg', 1.0),
+                            // Use higher quality JPEG instead of PNG to avoid string length issues
+                            dataUrl: highQuality ? leftCanvas.toDataURL('image/jpeg', 1.0) : leftCanvas.toDataURL('image/jpeg', 0.92),
                             pageNumber: pageNumber
                         });
                         
@@ -737,7 +738,8 @@
                             type: 'right',
                             width: rightCanvas.width,
                             height: rightCanvas.height,
-                            dataUrl: highQuality ? rightCanvas.toDataURL('image/png') : rightCanvas.toDataURL('image/jpeg', 1.0),
+                            // Use higher quality JPEG instead of PNG to avoid string length issues
+                            dataUrl: highQuality ? rightCanvas.toDataURL('image/jpeg', 1.0) : rightCanvas.toDataURL('image/jpeg', 0.92),
                             pageNumber: pageNumber
                         });
                     } else {
@@ -746,7 +748,8 @@
                             type: 'whole',
                             width: canvas.width,
                             height: canvas.height,
-                            dataUrl: highQuality ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 1.0),
+                            // Use higher quality JPEG instead of PNG to avoid string length issues
+                            dataUrl: highQuality ? canvas.toDataURL('image/jpeg', 1.0) : canvas.toDataURL('image/jpeg', 0.92),
                             pageNumber: pageNumber
                         });
                     }
