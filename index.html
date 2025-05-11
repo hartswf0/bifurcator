@@ -364,13 +364,27 @@
                 <h3>Processing Options</h3>
                 
                 <div class="option-group">
-                    <input type="checkbox" id="splitPagesOption" checked />
-                    <label for="splitPagesOption">Split pages in half (for scans with two pages on one sheet)</label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="splitPagesOption" checked>
+                        Split Pages (for book scans)
+                    </label>
+                    <div class="option-description">Splits each page into left and right halves</div>
                 </div>
                 
                 <div class="option-group">
-                    <input type="checkbox" id="reorderPagesOption" checked />
-                    <label for="reorderPagesOption">Reorder pages (put left/right halves in sequence)</label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="reorderPagesOption" checked>
+                        Reorder Pages (for book reading)
+                    </label>
+                    <div class="option-description">Orders pages in reading sequence (left-right-left-right)</div>
+                </div>
+                
+                <div class="option-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="highQuality" checked>
+                        High Quality Mode
+                    </label>
+                    <div class="option-description">Uses maximum quality settings (larger file size)</div>
                 </div>
             </div>
             
@@ -426,6 +440,7 @@
         const selectEvenBtn = document.getElementById('selectEvenBtn');
         const splitPagesOption = document.getElementById('splitPagesOption');
         const reorderPagesOption = document.getElementById('reorderPagesOption');
+        const highQualityOption = document.getElementById('highQuality');
         
         // PDF file input change handler
         pdfFileInput.addEventListener('change', async (event) => {
@@ -589,6 +604,7 @@
                 
                 const splitPages = splitPagesOption.checked;
                 const reorderPages = reorderPagesOption.checked;
+                const highQuality = highQualityOption.checked;
                 
                 // Create a fresh copy of the PDF data from the stored blob
                 const freshArrayBuffer = await pdfDataBlob.arrayBuffer();
@@ -598,7 +614,8 @@
                     freshPdfData, 
                     pageSelection, 
                     splitPages, 
-                    reorderPages
+                    reorderPages,
+                    highQuality
                 );
                 
                 // Create download link
@@ -627,7 +644,7 @@
         });
         
         // Process PDF function
-        async function processPdf(pdfData, pageSelection, splitPages, reorderPages) {
+        async function processPdf(pdfData, pageSelection, splitPages, reorderPages, highQuality) {
             try {
                 // Use the PDF data directly without attempting to copy it
                 // This avoids any detached ArrayBuffer issues
@@ -663,7 +680,8 @@
                     
                     const pageNumber = i + 1;
                     const page = await pdfDoc.getPage(pageNumber);
-                    const viewport = page.getViewport({ scale: 1.0 });
+                    // Use a higher scale factor for better resolution
+                    const viewport = page.getViewport({ scale: 2.0 });
                     
                     // Create canvas for rendering
                     const canvas = document.createElement('canvas');
@@ -711,7 +729,7 @@
                             type: 'left',
                             width: leftCanvas.width,
                             height: leftCanvas.height,
-                            dataUrl: leftCanvas.toDataURL('image/jpeg', 0.95),
+                            dataUrl: highQuality ? leftCanvas.toDataURL('image/png') : leftCanvas.toDataURL('image/jpeg', 1.0),
                             pageNumber: pageNumber
                         });
                         
@@ -719,7 +737,7 @@
                             type: 'right',
                             width: rightCanvas.width,
                             height: rightCanvas.height,
-                            dataUrl: rightCanvas.toDataURL('image/jpeg', 0.95),
+                            dataUrl: highQuality ? rightCanvas.toDataURL('image/png') : rightCanvas.toDataURL('image/jpeg', 1.0),
                             pageNumber: pageNumber
                         });
                     } else {
@@ -728,7 +746,7 @@
                             type: 'whole',
                             width: canvas.width,
                             height: canvas.height,
-                            dataUrl: canvas.toDataURL('image/jpeg', 0.95),
+                            dataUrl: highQuality ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 1.0),
                             pageNumber: pageNumber
                         });
                     }
